@@ -3,6 +3,7 @@ export interface ParsedWord {
   meaning: string;
   example: string;
   example_meaning: string;
+  day?: number; // Day 번호 (Day 3, Day 4 등)
 }
 
 export function parseWords(text: string): ParsedWord[] {
@@ -44,11 +45,21 @@ export function parseWords(text: string): ParsedWord[] {
   const wordSectionLines = allLines.slice(0, wordSectionEnd);
   
   let i = 0;
+  let currentDay: number | null = null;
+  
   while (i < wordSectionLines.length) {
     const line = wordSectionLines[i];
     
     // 빈 줄 건너뛰기
     if (line.length === 0) {
+      i++;
+      continue;
+    }
+    
+    // Day X 형식 감지 (예: "**Day 3**", "Day 3", "**Day 3**")
+    const dayMatch = line.match(/^[*\s]*Day\s+(\d+)[*\s]*$/i);
+    if (dayMatch) {
+      currentDay = parseInt(dayMatch[1]);
       i++;
       continue;
     }
@@ -124,6 +135,7 @@ export function parseWords(text: string): ParsedWord[] {
           meaning,
           example,
           example_meaning: example_meaning || example,
+          day: currentDay || undefined,
         });
       }
     } else {

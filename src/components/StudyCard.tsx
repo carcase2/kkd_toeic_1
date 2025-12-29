@@ -15,6 +15,7 @@ export default function StudyCard({ word, onNext, onStudy }: StudyCardProps) {
   const [state, setState] = useState<CardState>('word');
   const [isFlipping, setIsFlipping] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [flipDirection, setFlipDirection] = useState<'left' | 'right'>('right');
 
   // 컴포넌트 마운트 시 음성 목록 로드
   useEffect(() => {
@@ -95,18 +96,21 @@ export default function StudyCard({ word, onNext, onStudy }: StudyCardProps) {
   };
 
   const handleClick = () => {
+    // 플립 방향 교대
+    setFlipDirection(prev => prev === 'right' ? 'left' : 'right');
     setIsFlipping(true);
+    
     setTimeout(() => {
       if (state === 'word') {
         setState('meaning');
         // 단어 발음
-        setTimeout(() => speakText(word.word, 'en-US'), 200);
+        setTimeout(() => speakText(word.word, 'en-US'), 300);
       } else if (state === 'meaning') {
         setState('example');
       } else if (state === 'example') {
         setState('translation');
         // 문장 발음
-        setTimeout(() => speakText(word.example, 'en-US'), 200);
+        setTimeout(() => speakText(word.example, 'en-US'), 300);
       } else {
         // 학습 기록 저장
         fetch('/api/study', {
@@ -121,7 +125,7 @@ export default function StudyCard({ word, onNext, onStudy }: StudyCardProps) {
         window.speechSynthesis.cancel();
       }
       setIsFlipping(false);
-    }, 150);
+    }, 300);
   };
 
   const getContent = () => {
@@ -152,15 +156,22 @@ export default function StudyCard({ word, onNext, onStudy }: StudyCardProps) {
         <p className="text-sm text-gray-600 mt-2 text-center">{content.label}</p>
       </div>
 
-      <button
-        onClick={handleClick}
-        className={`
-          w-full min-h-[400px] bg-gradient-to-br from-blue-500 to-purple-600 
-          rounded-2xl shadow-2xl p-8 text-white transform transition-all duration-300
-          hover:scale-105 active:scale-95 relative
-          ${isFlipping ? 'opacity-50 scale-95' : ''}
-        `}
-      >
+      <div className="relative w-full overflow-hidden">
+        <button
+          onClick={handleClick}
+          className={`
+            w-full min-h-[400px] bg-gradient-to-br from-blue-500 to-purple-600 
+            rounded-2xl shadow-2xl p-8 text-white relative
+            transition-all duration-500 ease-in-out
+            hover:shadow-3xl hover:scale-[1.01]
+            ${isFlipping 
+              ? flipDirection === 'right'
+                ? 'translate-x-full opacity-0 scale-95 rotate-3'
+                : '-translate-x-full opacity-0 scale-95 -rotate-3'
+              : 'translate-x-0 opacity-100 scale-100 rotate-0'
+            }
+          `}
+        >
         <div className="flex flex-col items-center justify-center h-full">
           {state === 'word' && (
             <p className="text-4xl font-bold text-center leading-relaxed">
@@ -215,6 +226,7 @@ export default function StudyCard({ word, onNext, onStudy }: StudyCardProps) {
           )}
         </div>
       </button>
+      </div>
 
       <div className="mt-6 text-center">
         <p className="text-sm text-gray-600">

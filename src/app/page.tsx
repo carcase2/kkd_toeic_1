@@ -6,6 +6,7 @@ import Calendar from '@/components/Calendar';
 import WordForm from '@/components/WordForm';
 import BulkWordForm from '@/components/BulkWordForm';
 import WordList from '@/components/WordList';
+import WordSearch from '@/components/WordSearch';
 import Navigation from '@/components/Navigation';
 import { Word } from '@/types';
 
@@ -61,6 +62,14 @@ export default function Home() {
         </h1>
         
         <Navigation />
+
+        <div className="mb-6">
+          <WordSearch onWordSelect={(word) => {
+            // 검색된 단어의 날짜로 이동
+            setSelectedDate(word.date);
+            setEditingWord(undefined);
+          }} />
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div>

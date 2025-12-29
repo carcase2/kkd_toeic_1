@@ -28,3 +28,45 @@ body {
 * {
   box-sizing: border-box;
 }
+
+/* 카드 플립 애니메이션 */
+@keyframes cardFlip {
+  0% {
+    transform: perspective(1000px) rotateY(0deg) scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: perspective(1000px) rotateY(90deg) scale(0.9);
+    opacity: 0;
+  }
+  100% {
+    transform: perspective(1000px) rotateY(0deg) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOut {
+  0% {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(100%) scale(0.8);
+    opacity: 0;
+  }
+}
+
+@keyframes slideIn {
+  0% {
+    transform: translateX(-100%) scale(0.8);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.perspective-1000 {
+  perspective: 1000px;
+}
