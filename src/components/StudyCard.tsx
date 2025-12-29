@@ -121,7 +121,7 @@ export default function StudyCard({ word, onNext, onStudy, autoPlay = false, isP
       // 해석 후 문장 표시
       timeoutRef.current = setTimeout(() => {
         setShowSentence(true);
-      }, 1000);
+      }, 500);
     } else if (showSentence && !showSentencePronunciation) {
       // 문장 표시 후 발음 (2초 추가)
       timeoutRef.current = setTimeout(() => {
