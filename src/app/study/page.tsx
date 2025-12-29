@@ -11,6 +11,11 @@ export default function StudyPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [studyType, setStudyType] = useState<'today' | 'random'>('today');
   const [studiedCount, setStudiedCount] = useState(0);
+  const [autoPlay, setAutoPlay] = useState(true); // 기본값 true
+  const [isPaused, setIsPaused] = useState(true); // 처음에는 일시정지 상태
+  const [wordDelay, setWordDelay] = useState(1); // 단어 표시 후 뜻까지 시간 (초)
+  const [sentenceDelay, setSentenceDelay] = useState(3); // 문장 표시 후 번역까지 시간 (초)
+  const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
     loadWords();
@@ -32,6 +37,7 @@ export default function StudyPage() {
       }
       setCurrentIndex(0);
       setStudiedCount(0);
+      setIsPaused(true); // 새로운 단어 세트 로드 시 일시정지 상태로
     } catch (error) {
       console.error('Error loading words:', error);
     }
@@ -104,6 +110,16 @@ export default function StudyPage() {
               >
                 랜덤 단어
               </button>
+              <button
+                onClick={() => setShowSettings(!showSettings)}
+                className="px-4 py-2 bg-purple-500 text-white rounded-lg font-semibold hover:bg-purple-600 transition-colors flex items-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                설정
+              </button>
             </div>
             <div className="text-right">
               <p className="text-sm text-gray-600">
@@ -114,12 +130,66 @@ export default function StudyPage() {
               </p>
             </div>
           </div>
+
+          {showSettings && (
+            <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="mb-4">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={autoPlay}
+                    onChange={(e) => setAutoPlay(e.target.checked)}
+                    className="w-5 h-5 text-blue-600 rounded"
+                  />
+                  <span className="font-semibold text-gray-700">자동 재생</span>
+                </label>
+              </div>
+
+              {autoPlay && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      단어 → 뜻 시간 (초)
+                    </label>
+                    <input
+                      type="number"
+                      min="0.5"
+                      max="10"
+                      step="0.5"
+                      value={wordDelay}
+                      onChange={(e) => setWordDelay(parseFloat(e.target.value))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      문장 → 번역 시간 (초)
+                    </label>
+                    <input
+                      type="number"
+                      min="0.5"
+                      max="10"
+                      step="0.5"
+                      value={sentenceDelay}
+                      onChange={(e) => setSentenceDelay(parseFloat(e.target.value))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <StudyCard
           word={words[currentIndex]}
           onNext={handleNext}
           onStudy={handleStudy}
+          autoPlay={autoPlay}
+          isPaused={isPaused}
+          onStart={() => setIsPaused(false)}
+          wordDelay={wordDelay}
+          sentenceDelay={sentenceDelay}
         />
       </div>
     </div>
