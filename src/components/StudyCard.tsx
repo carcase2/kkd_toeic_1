@@ -39,27 +39,55 @@ export default function StudyCard({ word, onNext, onStudy, autoPlay = false, isP
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
       
-      const getBestVoice = () => {
+      const getBestVoice = (targetLang: string) => {
         const voices = window.speechSynthesis.getVoices();
-        const preferredNames = ['Google', 'Microsoft', 'Samantha', 'Alex', 'Daniel', 'Karen', 'Victoria'];
         
-        for (const name of preferredNames) {
-          const voice = voices.find(v => v.lang.startsWith('en') && v.name.includes(name));
-          if (voice) return voice;
+        if (targetLang.startsWith('ko')) {
+          // 한글 음성 우선순위: Google > Microsoft > Yuna > 기타 한국어 음성
+          const preferredNames = ['Google', 'Microsoft', 'Yuna', 'Yunjin'];
+          
+          for (const name of preferredNames) {
+            const voice = voices.find(v => 
+              v.lang.startsWith('ko') && 
+              (v.name.includes(name) || v.name.toLowerCase().includes(name.toLowerCase()))
+            );
+            if (voice) return voice;
+          }
+          
+          // 한국어 음성 중 가장 자연스러운 것 선택
+          return voices.find(v => v.lang.startsWith('ko-KR')) || 
+                 voices.find(v => v.lang.startsWith('ko')) || 
+                 null;
+        } else {
+          // 영어 음성 우선순위
+          const preferredNames = ['Google', 'Microsoft', 'Samantha', 'Alex', 'Daniel', 'Karen', 'Victoria'];
+          
+          for (const name of preferredNames) {
+            const voice = voices.find(v => v.lang.startsWith('en') && v.name.includes(name));
+            if (voice) return voice;
+          }
+          
+          return voices.find(v => v.lang.startsWith('en-US')) || 
+                 voices.find(v => v.lang.startsWith('en')) || 
+                 null;
         }
-        
-        return voices.find(v => v.lang.startsWith('en-US')) || 
-               voices.find(v => v.lang.startsWith('en')) || 
-               null;
       };
       
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = lang;
-      utterance.rate = 0.8;
-      utterance.pitch = 1.0;
-      utterance.volume = 1.0;
       
-      const selectedVoice = getBestVoice();
+      // 언어별 설정 조정
+      if (lang.startsWith('ko')) {
+        utterance.rate = 0.9; // 한글은 조금 빠르게
+        utterance.pitch = 1.0;
+        utterance.volume = 1.0;
+      } else {
+        utterance.rate = 0.8;
+        utterance.pitch = 1.0;
+        utterance.volume = 1.0;
+      }
+      
+      const selectedVoice = getBestVoice(lang);
       if (selectedVoice) {
         utterance.voice = selectedVoice;
       }
