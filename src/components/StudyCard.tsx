@@ -105,7 +105,7 @@ export default function StudyCard({ word, onNext, onStudy, autoPlay = false, isP
       const voices = window.speechSynthesis.getVoices();
       if (voices.length === 0) {
         window.speechSynthesis.onvoiceschanged = () => {
-          const voice = getBestVoice();
+          const voice = getBestVoice(lang);
           if (voice) {
             utterance.voice = voice;
           }
@@ -259,12 +259,12 @@ export default function StudyCard({ word, onNext, onStudy, autoPlay = false, isP
 
       <button
         onClick={handleClick}
-        className="w-full min-h-[400px] bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl shadow-2xl p-8 text-white relative transition-all duration-300 hover:shadow-3xl hover:scale-[1.01]"
+        className="w-full min-h-[300px] sm:min-h-[400px] bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl shadow-2xl p-6 sm:p-8 text-white relative transition-all duration-300 hover:shadow-3xl hover:scale-[1.01]"
       >
         <div className="flex flex-col items-center justify-center h-full space-y-4">
           {/* 단어 - 항상 표시 */}
           {showWord && (
-            <p className="text-4xl font-bold text-center leading-relaxed">
+            <p className="text-3xl sm:text-4xl font-bold text-center leading-relaxed">
               {word.word}
             </p>
           )}
@@ -287,7 +287,7 @@ export default function StudyCard({ word, onNext, onStudy, autoPlay = false, isP
           {showMeaning && (
             <div className="w-full animate-fadeIn">
               <div className="w-16 h-1 bg-white/30 rounded-full mx-auto mb-3"></div>
-              <p className="text-2xl text-center leading-relaxed">
+              <p className="text-xl sm:text-2xl text-center leading-relaxed">
                 {word.meaning}
               </p>
             </div>
@@ -297,7 +297,7 @@ export default function StudyCard({ word, onNext, onStudy, autoPlay = false, isP
           {showSentence && (
             <div className="w-full animate-fadeIn mt-4">
               <div className="w-16 h-1 bg-white/30 rounded-full mx-auto mb-3"></div>
-              <p className="text-xl font-semibold text-center leading-relaxed">
+              <p className="text-base sm:text-xl font-semibold text-center leading-relaxed">
                 {word.example}
               </p>
             </div>
@@ -321,7 +321,7 @@ export default function StudyCard({ word, onNext, onStudy, autoPlay = false, isP
           {showTranslation && (
             <div className="w-full animate-fadeIn mt-4">
               <div className="w-16 h-1 bg-white/30 rounded-full mx-auto mb-3"></div>
-              <p className="text-lg text-center leading-relaxed opacity-90">
+              <p className="text-sm sm:text-lg text-center leading-relaxed opacity-90">
                 {word.example_meaning}
               </p>
             </div>
