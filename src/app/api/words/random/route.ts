@@ -1,9 +1,9 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { Word } from '@/types';
 
-// GET: 랜덤 단어 10개 조회
-export async function GET() {
+// GET: 랜덤 단어 10개 조회 (공통 단어)
+export async function GET(request: NextRequest) {
   try {
     // 먼저 전체 단어 수를 가져온 후 랜덤하게 선택
     const { data: allWords, error: fetchError } = await supabase

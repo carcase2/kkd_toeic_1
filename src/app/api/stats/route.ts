@@ -1,20 +1,32 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
 // GET: 통계 데이터 조회
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
+  const userId = searchParams.get('user_id');
+
   try {
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'User ID is required' },
+        { status: 400 }
+      );
+    }
+
     // 전체 단어 수
     const { count: totalWords, error: totalError } = await supabase
       .from('words')
-      .select('*', { count: 'exact', head: true });
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId);
 
     if (totalError) throw totalError;
 
     // 학습한 단어 수
     const { data: studiedData, error: studiedError } = await supabase
       .from('study_records')
-      .select('word_id');
+      .select('word_id')
+      .eq('user_id', userId);
 
     if (studiedError) throw studiedError;
     const studiedWords = new Set(studiedData?.map(r => r.word_id) || []).size;
@@ -26,13 +38,14 @@ export async function GET() {
     const { data: todayData, error: todayError } = await supabase
       .from('study_records')
       .select('word_id')
+      .eq('user_id', userId)
       .gte('studied_at', `${today}T00:00:00`)
       .lt('studied_at', `${today}T23:59:59`);
 
     if (todayError) throw todayError;
     const todayStudied = new Set(todayData?.map(r => r.word_id) || []).size;
 
-    // 날짜별 단어 수
+    // 날짜별 단어 수 (공통 단어이지만 사용자별 학습 통계를 위해 조회)
     const { data: wordsData, error: wordsError } = await supabase
       .from('words')
       .select('date')
@@ -60,6 +73,7 @@ export async function GET() {
     const { data: recentData, error: recentError } = await supabase
       .from('study_records')
       .select('studied_at')
+      .eq('user_id', userId)
       .gte('studied_at', `${sevenDaysAgoStr}T00:00:00`);
 
     if (recentError) throw recentError;
@@ -82,6 +96,7 @@ export async function GET() {
       studyCountMap.set(record.word_id, count + 1);
     });
 
+    // 공통 단어 조회 (사용자별 학습 횟수 통계를 위해)
     const { data: allWords, error: allWordsError } = await supabase
       .from('words')
       .select('*');

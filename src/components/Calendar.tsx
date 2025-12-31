@@ -12,9 +12,11 @@ interface CalendarProps {
 export default function Calendar({ onDateClick, selectedDate }: CalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [wordsByDate, setWordsByDate] = useState<Record<string, number>>({});
+  const [studiedDates, setStudiedDates] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchWordsByDate();
+    fetchStudiedDates();
   }, [currentMonth]);
 
   const fetchWordsByDate = async () => {
@@ -28,6 +30,19 @@ export default function Calendar({ onDateClick, selectedDate }: CalendarProps) {
       setWordsByDate(countMap);
     } catch (error) {
       console.error('Error fetching words:', error);
+    }
+  };
+
+  const fetchStudiedDates = async () => {
+    try {
+      const userId = localStorage.getItem('userId');
+      if (!userId) return;
+      
+      const response = await fetch(`/api/study/dates?user_id=${userId}`);
+      const dates: string[] = await response.json();
+      setStudiedDates(new Set(dates));
+    } catch (error) {
+      console.error('Error fetching studied dates:', error);
     }
   };
 
@@ -87,6 +102,7 @@ export default function Calendar({ onDateClick, selectedDate }: CalendarProps) {
           const wordCount = wordsByDate[dateStr] || 0;
           const isSelected = selectedDate && isSameDay(day, new Date(selectedDate));
           const isCurrentDay = isToday(day);
+          const isStudied = studiedDates.has(dateStr);
 
           return (
             <button
@@ -96,6 +112,7 @@ export default function Calendar({ onDateClick, selectedDate }: CalendarProps) {
                 relative p-3 rounded-lg transition-all hover:scale-105
                 ${isSelected ? 'bg-blue-500 text-white shadow-md' : 'bg-gray-50 hover:bg-blue-50'}
                 ${isCurrentDay && !isSelected ? 'ring-2 ring-blue-300' : ''}
+                ${isStudied && !isSelected ? 'bg-green-50 border-2 border-green-300' : ''}
               `}
             >
               <div className="text-sm font-medium">{format(day, 'd')}</div>
@@ -106,6 +123,12 @@ export default function Calendar({ onDateClick, selectedDate }: CalendarProps) {
                 `}>
                   {wordCount}
                 </div>
+              )}
+              {isStudied && (
+                <div className={`
+                  absolute bottom-1 left-1 w-2 h-2 rounded-full
+                  ${isSelected ? 'bg-white' : 'bg-green-500'}
+                `} title="학습 완료" />
               )}
             </button>
           );

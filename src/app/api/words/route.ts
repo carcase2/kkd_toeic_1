@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { Word } from '@/types';
 
-// GET: 날짜별 단어 조회
+// GET: 날짜별 단어 조회 (공통 단어)
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const date = searchParams.get('date');
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST: 단어 추가
+// POST: 단어 추가 (공통 단어)
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PUT: 단어 수정
+// PUT: 단어 수정 (공통 단어)
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
@@ -125,7 +125,7 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-// DELETE: 단어 삭제
+// DELETE: 단어 삭제 (공통 단어)
 export async function DELETE(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const id = searchParams.get('id');

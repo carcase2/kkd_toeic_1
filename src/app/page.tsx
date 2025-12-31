@@ -8,6 +8,7 @@ import BulkWordForm from '@/components/BulkWordForm';
 import WordList from '@/components/WordList';
 import WordSearch from '@/components/WordSearch';
 import Navigation from '@/components/Navigation';
+import ProtectedRoute from '@/components/ProtectedRoute';
 import { Word } from '@/types';
 
 export default function Home() {
@@ -55,13 +56,14 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-4xl font-bold text-center mb-8 text-gray-800">
-          토익 단어 학습
-        </h1>
-        
-        <Navigation />
+    <ProtectedRoute>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-6">
+        <div className="max-w-7xl mx-auto">
+          <h1 className="text-4xl font-bold text-center mb-8 text-gray-800">
+            토익 단어 학습
+          </h1>
+          
+          <Navigation />
 
         <div className="mb-6">
           <WordSearch onWordSelect={(word) => {
@@ -145,5 +147,6 @@ export default function Home() {
         )}
       </div>
     </div>
+    </ProtectedRoute>
   );
 }

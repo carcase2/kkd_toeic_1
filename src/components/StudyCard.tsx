@@ -22,26 +22,75 @@ export default function StudyCard({ word, onNext, onStudy, autoPlay = false, isP
   const [showSentencePronunciation, setShowSentencePronunciation] = useState(false);
   const [showTranslation, setShowTranslation] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isIncorrect, setIsIncorrect] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const voicesLoadedRef = useRef(false);
+
+  // iOS Safari 호환: 음성 목록 로드 대기
+  const ensureVoicesLoaded = (): Promise<SpeechSynthesisVoice[]> => {
+    return new Promise((resolve) => {
+      if (!('speechSynthesis' in window)) {
+        resolve([]);
+        return;
+      }
+
+      const voices = window.speechSynthesis.getVoices();
+      
+      // iOS Safari: 음성이 이미 로드되어 있으면 반환
+      if (voices.length > 0 && voicesLoadedRef.current) {
+        resolve(voices);
+        return;
+      }
+
+      // 음성이 없으면 로드 대기
+      if (voices.length === 0) {
+        const onVoicesChanged = () => {
+          const loadedVoices = window.speechSynthesis.getVoices();
+          if (loadedVoices.length > 0) {
+            voicesLoadedRef.current = true;
+            window.speechSynthesis.removeEventListener('voiceschanged', onVoicesChanged);
+            resolve(loadedVoices);
+          }
+        };
+        
+        window.speechSynthesis.addEventListener('voiceschanged', onVoicesChanged);
+        
+        // 타임아웃 설정 (최대 2초 대기)
+        setTimeout(() => {
+          window.speechSynthesis.removeEventListener('voiceschanged', onVoicesChanged);
+          const loadedVoices = window.speechSynthesis.getVoices();
+          voicesLoadedRef.current = loadedVoices.length > 0;
+          resolve(loadedVoices);
+        }, 2000);
+      } else {
+        voicesLoadedRef.current = true;
+        resolve(voices);
+      }
+    });
+  };
 
   // 컴포넌트 마운트 시 음성 목록 로드
   useEffect(() => {
     if ('speechSynthesis' in window) {
-      window.speechSynthesis.getVoices();
-      window.speechSynthesis.onvoiceschanged = () => {
-        window.speechSynthesis.getVoices();
-      };
+      ensureVoicesLoaded();
     }
   }, []);
 
-  // TTS 함수
-  const speakText = (text: string, lang: string = 'en-US') => {
-    if ('speechSynthesis' in window) {
+  // TTS 함수 (iOS Safari 호환)
+  const speakText = async (text: string, lang: string = 'en-US') => {
+    if (!('speechSynthesis' in window)) {
+      console.warn('Speech synthesis not supported');
+      return;
+    }
+
+    try {
+      // 기존 발음 취소
       window.speechSynthesis.cancel();
       
+      // iOS Safari: 음성 목록이 로드될 때까지 대기
+      const voices = await ensureVoicesLoaded();
+      
       const getBestVoice = (targetLang: string) => {
-        const voices = window.speechSynthesis.getVoices();
-        
         if (targetLang.startsWith('ko')) {
           // 한글 음성 우선순위: Google > Microsoft > Yuna > 기타 한국어 음성
           const preferredNames = ['Google', 'Microsoft', 'Yuna', 'Yunjin'];
@@ -78,7 +127,7 @@ export default function StudyCard({ word, onNext, onStudy, autoPlay = false, isP
       
       // 언어별 설정 조정
       if (lang.startsWith('ko')) {
-        utterance.rate = 0.9; // 한글은 조금 빠르게
+        utterance.rate = 0.9;
         utterance.pitch = 1.0;
         utterance.volume = 1.0;
       } else {
@@ -95,25 +144,18 @@ export default function StudyCard({ word, onNext, onStudy, autoPlay = false, isP
       utterance.onstart = () => setIsSpeaking(true);
       utterance.onend = () => {
         setIsSpeaking(false);
-        window.speechSynthesis.cancel();
       };
-      utterance.onerror = () => {
+      utterance.onerror = (event) => {
+        console.error('Speech synthesis error:', event);
         setIsSpeaking(false);
         window.speechSynthesis.cancel();
       };
       
-      const voices = window.speechSynthesis.getVoices();
-      if (voices.length === 0) {
-        window.speechSynthesis.onvoiceschanged = () => {
-          const voice = getBestVoice(lang);
-          if (voice) {
-            utterance.voice = voice;
-          }
-          window.speechSynthesis.speak(utterance);
-        };
-      } else {
-        window.speechSynthesis.speak(utterance);
-      }
+      // iOS Safari: speak 호출
+      window.speechSynthesis.speak(utterance);
+    } catch (error) {
+      console.error('Error in speakText:', error);
+      setIsSpeaking(false);
     }
   };
 
@@ -138,7 +180,10 @@ export default function StudyCard({ word, onNext, onStudy, autoPlay = false, isP
       // 단어 표시 후 발음 (wordDelay + 1초 추가)
       timeoutRef.current = setTimeout(() => {
         setShowWordPronunciation(true);
-        setTimeout(() => speakText(word.word, 'en-US'), 200);
+        // iOS Safari 호환: 약간의 지연 후 발음
+        setTimeout(() => {
+          speakText(word.word, 'en-US');
+        }, 300);
       }, (wordDelay + 1) * 1000);
     } else if (showWordPronunciation && !showMeaning) {
       // 발음 후 해석 표시 (발음이 끝난 후 1초 추가)
@@ -154,7 +199,10 @@ export default function StudyCard({ word, onNext, onStudy, autoPlay = false, isP
       // 문장 표시 후 발음 (2초 추가)
       timeoutRef.current = setTimeout(() => {
         setShowSentencePronunciation(true);
-        setTimeout(() => speakText(word.example, 'en-US'), 200);
+        // iOS Safari 호환: 약간의 지연 후 발음
+        setTimeout(() => {
+          speakText(word.example, 'en-US');
+        }, 300);
       }, 2500);
     } else if (showSentencePronunciation && !showTranslation) {
       // 발음 후 번역 표시 (sentenceDelay + 1초 추가)
@@ -164,11 +212,14 @@ export default function StudyCard({ word, onNext, onStudy, autoPlay = false, isP
     } else if (showTranslation) {
       // 번역 표시 후 다음 단어로
       timeoutRef.current = setTimeout(() => {
-        fetch('/api/study', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ word_id: word.id }),
-        });
+        const userId = localStorage.getItem('userId');
+        if (userId) {
+          fetch('/api/study', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ word_id: word.id, user_id: userId }),
+          });
+        }
         onStudy();
         onNext();
         window.speechSynthesis.cancel();
@@ -183,7 +234,7 @@ export default function StudyCard({ word, onNext, onStudy, autoPlay = false, isP
     };
   }, [autoPlay, isPaused, showWord, showWordPronunciation, showMeaning, showSentence, showSentencePronunciation, showTranslation, wordDelay, sentenceDelay, word.id, word.word, word.example, onNext, onStudy]);
 
-  // 단어 변경 시 상태 초기화
+  // 단어 변경 시 상태 초기화 및 오답 여부 확인
   useEffect(() => {
     setShowWord(true);
     setShowWordPronunciation(false);
@@ -192,12 +243,63 @@ export default function StudyCard({ word, onNext, onStudy, autoPlay = false, isP
     setShowSentencePronunciation(false);
     setShowTranslation(false);
     setIsSpeaking(false);
+    
+    // 현재 사용자의 오답 여부 확인
+    const checkIncorrect = async () => {
+      const userId = localStorage.getItem('userId');
+      if (!userId) {
+        setIsIncorrect(false);
+        return;
+      }
+      
+      try {
+        const response = await fetch(`/api/words/incorrect/check?user_id=${userId}&word_id=${word.id}`);
+        const data = await response.json();
+        setIsIncorrect(data.is_incorrect || false);
+      } catch (error) {
+        console.error('Error checking incorrect status:', error);
+        setIsIncorrect(false);
+      }
+    };
+    
+    checkIncorrect();
+    
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
     window.speechSynthesis.cancel();
   }, [word.id]);
+
+  // 오답 체크박스 토글
+  const handleIncorrectToggle = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // 카드 클릭 이벤트 방지
+    const newValue = !isIncorrect;
+    setIsIncorrect(newValue);
+
+    try {
+      const userId = localStorage.getItem('userId');
+      if (!userId) {
+        setIsIncorrect(!newValue);
+        return;
+      }
+      const response = await fetch('/api/words/incorrect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ word_id: word.id, is_incorrect: newValue, user_id: userId }),
+      });
+
+      if (!response.ok) {
+        // 실패 시 원래 상태로 복구
+        setIsIncorrect(!newValue);
+        console.error('Failed to update incorrect status');
+      }
+    } catch (error) {
+      // 실패 시 원래 상태로 복구
+      setIsIncorrect(!newValue);
+      console.error('Error updating incorrect status:', error);
+    }
+  };
 
   const handleClick = () => {
     // 일시정지 상태이고 자동 재생이 켜져있으면 시작
@@ -213,14 +315,20 @@ export default function StudyCard({ word, onNext, onStudy, autoPlay = false, isP
 
     if (showWord && !showWordPronunciation) {
       setShowWordPronunciation(true);
-      setTimeout(() => speakText(word.word, 'en-US'), 200);
+      // iOS Safari 호환: 사용자 상호작용 내에서 발음
+      setTimeout(() => {
+        speakText(word.word, 'en-US');
+      }, 100);
     } else if (showWordPronunciation && !showMeaning) {
       setShowMeaning(true);
     } else if (showMeaning && !showSentence) {
       setShowSentence(true);
     } else if (showSentence && !showSentencePronunciation) {
       setShowSentencePronunciation(true);
-      setTimeout(() => speakText(word.example, 'en-US'), 200);
+      // iOS Safari 호환: 사용자 상호작용 내에서 발음
+      setTimeout(() => {
+        speakText(word.example, 'en-US');
+      }, 100);
     } else if (showSentencePronunciation && !showTranslation) {
       setShowTranslation(true);
     } else {
@@ -261,6 +369,22 @@ export default function StudyCard({ word, onNext, onStudy, autoPlay = false, isP
         onClick={handleClick}
         className="w-full min-h-[300px] sm:min-h-[400px] bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl shadow-2xl p-6 sm:p-8 text-white relative transition-all duration-300 hover:shadow-3xl hover:scale-[1.01]"
       >
+        {/* 오답 체크박스 */}
+        <div 
+          className="absolute top-4 right-4 z-10"
+          onClick={handleIncorrectToggle}
+        >
+          <label className="flex items-center gap-2 cursor-pointer bg-white/20 hover:bg-white/30 rounded-lg px-3 py-2 transition-colors">
+            <input
+              type="checkbox"
+              checked={isIncorrect}
+              onChange={() => {}} // handleIncorrectToggle에서 처리
+              className="w-5 h-5 rounded border-2 border-white/50 checked:bg-red-500 checked:border-red-500 focus:ring-2 focus:ring-white/50 cursor-pointer"
+            />
+            <span className="text-sm font-semibold">오답</span>
+          </label>
+        </div>
+
         <div className="flex flex-col items-center justify-center h-full space-y-4">
           {/* 단어 - 항상 표시 */}
           {showWord && (

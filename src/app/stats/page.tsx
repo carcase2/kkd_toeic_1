@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Navigation from '@/components/Navigation';
+import ProtectedRoute from '@/components/ProtectedRoute';
 import { format } from 'date-fns';
 
 interface StatsData {
@@ -23,7 +24,9 @@ export default function StatsPage() {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch('/api/stats');
+      const userId = localStorage.getItem('userId');
+      if (!userId) return;
+      const response = await fetch(`/api/stats?user_id=${userId}`);
       const data = await response.json();
       setStats(data);
       setLoading(false);
@@ -35,38 +38,43 @@ export default function StatsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-6">
-        <div className="max-w-6xl mx-auto">
-          <Navigation />
-          <div className="text-center py-12">
-            <p className="text-xl text-gray-600">통계를 불러오는 중...</p>
+      <ProtectedRoute>
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-6">
+          <div className="max-w-6xl mx-auto">
+            <Navigation />
+            <div className="text-center py-12">
+              <p className="text-xl text-gray-600">통계를 불러오는 중...</p>
+            </div>
           </div>
         </div>
-      </div>
+      </ProtectedRoute>
     );
   }
 
   if (!stats) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-6">
-        <div className="max-w-6xl mx-auto">
-          <Navigation />
-          <div className="text-center py-12">
-            <p className="text-xl text-gray-600">통계를 불러올 수 없습니다.</p>
+      <ProtectedRoute>
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-6">
+          <div className="max-w-6xl mx-auto">
+            <Navigation />
+            <div className="text-center py-12">
+              <p className="text-xl text-gray-600">통계를 불러올 수 없습니다.</p>
+            </div>
           </div>
         </div>
-      </div>
+      </ProtectedRoute>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-6">
-      <div className="max-w-6xl mx-auto">
-        <h1 className="text-4xl font-bold text-center mb-8 text-gray-800">
-          학습 통계
-        </h1>
+    <ProtectedRoute>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-6">
+        <div className="max-w-6xl mx-auto">
+          <h1 className="text-4xl font-bold text-center mb-8 text-gray-800">
+            학습 통계
+          </h1>
 
-        <Navigation />
+          <Navigation />
 
         {/* 주요 통계 카드 */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -164,6 +172,7 @@ export default function StatsPage() {
         )}
       </div>
     </div>
+    </ProtectedRoute>
   );
 }
 

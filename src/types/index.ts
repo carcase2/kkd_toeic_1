@@ -6,6 +6,7 @@ export interface Word {
   example: string;
   example_meaning: string;
   created_at: string;
+  is_incorrect?: boolean;
 }
 
 export interface StudyRecord {
