@@ -25,6 +25,17 @@ export default function StudyCard({ word, onNext, onStudy, autoPlay = false, isP
   const [isIncorrect, setIsIncorrect] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const voicesLoadedRef = useRef(false);
+  const pendingSpeechRef = useRef<{ text: string; lang: string } | null>(null);
+  const userInteractionRef = useRef(false);
+
+  // iOS Safari 감지
+  const isIOSSafari = (): boolean => {
+    if (typeof window === 'undefined') return false;
+    const ua = window.navigator.userAgent;
+    const iOS = /iPad|iPhone|iPod/.test(ua);
+    const webkit = /WebKit/.test(ua);
+    return iOS && webkit && !(window as any).MSStream;
+  };
 
   // iOS Safari 호환: 음성 목록 로드 대기
   const ensureVoicesLoaded = (): Promise<SpeechSynthesisVoice[]> => {
@@ -69,15 +80,38 @@ export default function StudyCard({ word, onNext, onStudy, autoPlay = false, isP
     });
   };
 
-  // 컴포넌트 마운트 시 음성 목록 로드
+  // 컴포넌트 마운트 시 음성 목록 로드 및 사용자 상호작용 감지
   useEffect(() => {
     if ('speechSynthesis' in window) {
       ensureVoicesLoaded();
     }
+
+    // iOS Safari: 사용자 상호작용 감지
+    const handleUserInteraction = () => {
+      userInteractionRef.current = true;
+      // 대기 중인 발음이 있으면 실행
+      if (pendingSpeechRef.current) {
+        const { text, lang } = pendingSpeechRef.current;
+        pendingSpeechRef.current = null;
+        // 직접 호출 (이미 사용자 상호작용 이벤트 핸들러 내)
+        executeSpeak(text, lang);
+      }
+    };
+
+    // 다양한 사용자 상호작용 이벤트 리스너 추가
+    window.addEventListener('touchstart', handleUserInteraction, { once: true });
+    window.addEventListener('click', handleUserInteraction, { once: true });
+    window.addEventListener('touchend', handleUserInteraction, { once: true });
+
+    return () => {
+      window.removeEventListener('touchstart', handleUserInteraction);
+      window.removeEventListener('click', handleUserInteraction);
+      window.removeEventListener('touchend', handleUserInteraction);
+    };
   }, []);
 
-  // TTS 함수 (iOS Safari 호환)
-  const speakText = async (text: string, lang: string = 'en-US') => {
+  // 실제 TTS 실행 함수 (사용자 상호작용 이벤트 핸들러 내에서만 호출)
+  const executeSpeak = async (text: string, lang: string = 'en-US') => {
     if (!('speechSynthesis' in window)) {
       console.warn('Speech synthesis not supported');
       return;
@@ -151,12 +185,29 @@ export default function StudyCard({ word, onNext, onStudy, autoPlay = false, isP
         window.speechSynthesis.cancel();
       };
       
-      // iOS Safari: speak 호출
+      // iOS Safari: speak 호출 (사용자 상호작용 이벤트 핸들러 내에서 호출됨)
       window.speechSynthesis.speak(utterance);
     } catch (error) {
-      console.error('Error in speakText:', error);
+      console.error('Error in executeSpeak:', error);
       setIsSpeaking(false);
     }
+  };
+
+  // TTS 함수 (iOS Safari 호환 - 사용자 상호작용 확인)
+  const speakText = (text: string, lang: string = 'en-US') => {
+    if (!('speechSynthesis' in window)) {
+      console.warn('Speech synthesis not supported');
+      return;
+    }
+
+    // iOS Safari이고 사용자 상호작용이 없으면 대기
+    if (isIOSSafari() && !userInteractionRef.current) {
+      pendingSpeechRef.current = { text, lang };
+      return;
+    }
+
+    // 사용자 상호작용이 있거나 iOS가 아니면 바로 실행
+    executeSpeak(text, lang);
   };
 
   // 자동 진행
@@ -183,7 +234,7 @@ export default function StudyCard({ word, onNext, onStudy, autoPlay = false, isP
         // iOS Safari 호환: 약간의 지연 후 발음
         setTimeout(() => {
           speakText(word.word, 'en-US');
-        }, 300);
+        }, 100);
       }, (wordDelay + 1) * 1000);
     } else if (showWordPronunciation && !showMeaning) {
       // 발음 후 해석 표시 (발음이 끝난 후 1초 추가)
@@ -202,7 +253,7 @@ export default function StudyCard({ word, onNext, onStudy, autoPlay = false, isP
         // iOS Safari 호환: 약간의 지연 후 발음
         setTimeout(() => {
           speakText(word.example, 'en-US');
-        }, 300);
+        }, 100);
       }, 2500);
     } else if (showSentencePronunciation && !showTranslation) {
       // 발음 후 번역 표시 (sentenceDelay + 1초 추가)
@@ -302,6 +353,16 @@ export default function StudyCard({ word, onNext, onStudy, autoPlay = false, isP
   };
 
   const handleClick = () => {
+    // iOS Safari: 사용자 상호작용 플래그 설정
+    userInteractionRef.current = true;
+    
+    // 대기 중인 발음이 있으면 실행
+    if (pendingSpeechRef.current) {
+      const { text, lang } = pendingSpeechRef.current;
+      pendingSpeechRef.current = null;
+      executeSpeak(text, lang);
+    }
+
     // 일시정지 상태이고 자동 재생이 켜져있으면 시작
     if (isPaused && autoPlay && onStart) {
       onStart();
@@ -315,28 +376,27 @@ export default function StudyCard({ word, onNext, onStudy, autoPlay = false, isP
 
     if (showWord && !showWordPronunciation) {
       setShowWordPronunciation(true);
-      // iOS Safari 호환: 사용자 상호작용 내에서 발음
-      setTimeout(() => {
-        speakText(word.word, 'en-US');
-      }, 100);
+      // iOS Safari 호환: 사용자 상호작용 내에서 직접 발음
+      executeSpeak(word.word, 'en-US');
     } else if (showWordPronunciation && !showMeaning) {
       setShowMeaning(true);
     } else if (showMeaning && !showSentence) {
       setShowSentence(true);
     } else if (showSentence && !showSentencePronunciation) {
       setShowSentencePronunciation(true);
-      // iOS Safari 호환: 사용자 상호작용 내에서 발음
-      setTimeout(() => {
-        speakText(word.example, 'en-US');
-      }, 100);
+      // iOS Safari 호환: 사용자 상호작용 내에서 직접 발음
+      executeSpeak(word.example, 'en-US');
     } else if (showSentencePronunciation && !showTranslation) {
       setShowTranslation(true);
     } else {
-      fetch('/api/study', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ word_id: word.id }),
-      });
+      const userId = localStorage.getItem('userId');
+      if (userId) {
+        fetch('/api/study', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ word_id: word.id, user_id: userId }),
+        });
+      }
       onStudy();
       onNext();
       setShowWord(true);
