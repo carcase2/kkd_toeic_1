@@ -57,7 +57,7 @@ export default function Navigation() {
             </>
           )}
           <div className="text-xs text-gray-400 font-mono hidden sm:block">
-            v1.2.1
+            v1.3.0
           </div>
         </div>
       </div>
