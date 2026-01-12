@@ -231,7 +231,7 @@ export default function StudyCard({ word, onNext, onStudy, autoPlay = false, isP
       // 단어 표시 후 발음 (wordDelay + 1초 추가)
       timeoutRef.current = setTimeout(() => {
         setShowWordPronunciation(true);
-        // iOS Safari 호환: 약간의 지연 후 발음
+        // 사용자 상호작용이 이미 있었으면 iOS에서도 자동 발음 가능
         setTimeout(() => {
           speakText(word.word, 'en-US');
         }, 100);
@@ -250,7 +250,7 @@ export default function StudyCard({ word, onNext, onStudy, autoPlay = false, isP
       // 문장 표시 후 발음 (2초 추가)
       timeoutRef.current = setTimeout(() => {
         setShowSentencePronunciation(true);
-        // iOS Safari 호환: 약간의 지연 후 발음
+        // 사용자 상호작용이 이미 있었으면 iOS에서도 자동 발음 가능
         setTimeout(() => {
           speakText(word.example, 'en-US');
         }, 100);
@@ -332,23 +332,32 @@ export default function StudyCard({ word, onNext, onStudy, autoPlay = false, isP
       const userId = localStorage.getItem('userId');
       if (!userId) {
         setIsIncorrect(!newValue);
+        alert('로그인이 필요합니다.');
         return;
       }
+      
       const response = await fetch('/api/words/incorrect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ word_id: word.id, is_incorrect: newValue, user_id: userId }),
       });
 
+      const result = await response.json();
+      
       if (!response.ok) {
         // 실패 시 원래 상태로 복구
         setIsIncorrect(!newValue);
-        console.error('Failed to update incorrect status');
+        console.error('Failed to update incorrect status:', result);
+        alert(`오답 저장 실패: ${result.error || '알 수 없는 오류'}`);
+      } else {
+        // 성공 시 확인 메시지 (선택적)
+        console.log('Incorrect status updated:', result);
       }
     } catch (error) {
       // 실패 시 원래 상태로 복구
       setIsIncorrect(!newValue);
       console.error('Error updating incorrect status:', error);
+      alert('오답 저장 중 오류가 발생했습니다.');
     }
   };
 
@@ -361,6 +370,7 @@ export default function StudyCard({ word, onNext, onStudy, autoPlay = false, isP
       const { text, lang } = pendingSpeechRef.current;
       pendingSpeechRef.current = null;
       executeSpeak(text, lang);
+      return;
     }
 
     // 일시정지 상태이고 자동 재생이 켜져있으면 시작
@@ -374,9 +384,24 @@ export default function StudyCard({ word, onNext, onStudy, autoPlay = false, isP
       timeoutRef.current = null;
     }
 
+    // iOS Safari + 자동 재생 모드: 발음 단계에서만 발음 실행
+    if (isIOSSafari() && autoPlay) {
+      if (showWordPronunciation && !showMeaning && !isSpeaking) {
+        // 단어 발음 단계: 발음 실행
+        executeSpeak(word.word, 'en-US');
+        return;
+      } else if (showSentencePronunciation && !showTranslation && !isSpeaking) {
+        // 문장 발음 단계: 발음 실행
+        executeSpeak(word.example, 'en-US');
+        return;
+      }
+      // 다른 단계는 자동 진행되므로 아무것도 하지 않음
+      return;
+    }
+
+    // 수동 모드 또는 iOS가 아닌 경우: 기존 로직
     if (showWord && !showWordPronunciation) {
       setShowWordPronunciation(true);
-      // iOS Safari 호환: 사용자 상호작용 내에서 직접 발음
       executeSpeak(word.word, 'en-US');
     } else if (showWordPronunciation && !showMeaning) {
       setShowMeaning(true);
@@ -384,7 +409,6 @@ export default function StudyCard({ word, onNext, onStudy, autoPlay = false, isP
       setShowSentence(true);
     } else if (showSentence && !showSentencePronunciation) {
       setShowSentencePronunciation(true);
-      // iOS Safari 호환: 사용자 상호작용 내에서 직접 발음
       executeSpeak(word.example, 'en-US');
     } else if (showSentencePronunciation && !showTranslation) {
       setShowTranslation(true);

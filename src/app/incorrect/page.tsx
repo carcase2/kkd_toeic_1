@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { Word } from '@/types';
 import StudyCard from '@/components/StudyCard';
 import Navigation from '@/components/Navigation';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
 export default function IncorrectPage() {
+  const pathname = usePathname();
   const [words, setWords] = useState<Word[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [studiedCount, setStudiedCount] = useState(0);
@@ -17,16 +19,39 @@ export default function IncorrectPage() {
   const [showTimeSettings, setShowTimeSettings] = useState(false);
   const [continuousMode, setContinuousMode] = useState(true);
 
+  // 경로 변경 시 또는 페이지 마운트 시 단어 목록 새로고침
   useEffect(() => {
     loadWords();
+  }, [pathname]);
+
+  // 페이지 포커스 시 단어 목록 새로고침 (다른 탭에서 오답 체크한 경우 반영)
+  useEffect(() => {
+    const handleFocus = () => {
+      loadWords();
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
   }, []);
 
   const loadWords = async () => {
     try {
       const userId = localStorage.getItem('userId');
-      if (!userId) return;
+      if (!userId) {
+        console.error('loadWords: No userId found in localStorage');
+        return;
+      }
+      console.log(`loadWords: Fetching incorrect words for user_id: ${userId}`);
       const response = await fetch(`/api/words/incorrect?user_id=${userId}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('loadWords: API error:', errorData);
+        alert(`오답 단어를 불러오는데 실패했습니다: ${errorData.error || '알 수 없는 오류'}`);
+        return;
+      }
+      
       const data = await response.json();
+      console.log(`loadWords: Received ${data.length} incorrect words`);
       // 무작위로 섞기
       const shuffled = [...data].sort(() => Math.random() - 0.5);
       setWords(shuffled);
@@ -34,6 +59,7 @@ export default function IncorrectPage() {
       setStudiedCount(0);
     } catch (error) {
       console.error('Error loading incorrect words:', error);
+      alert('오답 단어를 불러오는 중 오류가 발생했습니다.');
     }
   };
 
@@ -265,9 +291,14 @@ export default function IncorrectPage() {
 
                   if (response.ok) {
                     // 목록에서 제거
-                    setWords(prev => prev.filter(w => w.id !== words[currentIndex].id));
-                    if (currentIndex >= words.length - 1) {
-                      setCurrentIndex(Math.max(0, currentIndex - 1));
+                    const newWords = words.filter(w => w.id !== words[currentIndex].id);
+                    setWords(newWords);
+                    
+                    // 인덱스 조정
+                    if (newWords.length === 0) {
+                      setCurrentIndex(0);
+                    } else if (currentIndex >= newWords.length) {
+                      setCurrentIndex(newWords.length - 1);
                     }
                   }
                 } catch (error) {
